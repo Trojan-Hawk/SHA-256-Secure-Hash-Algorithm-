@@ -11,12 +11,16 @@ void sha256();
 
 // macro functions
 // see section 3.2 for definitions
-#define ROTR(x,n) ((x << (32 - n)) | (x >> n))
-#define ROTL(x,n) ((x << n) | (x >> (32 - n)))
+#define ROTR(x,n)  ((x << (32 - n)) | (x >> n))
+#define ROTL(x,n)  ((x << n) | (x >> (32 - n)))
 // see sections 4.1.2 and 4.2.2 for definitions
-#define SIG0(x)   (ROTR(7, x) ^ ROTR(18, x) ^ SHR(3, x))
-#define SIG1(x)   (ROTR(17, x) ^ ROTR(19, x) ^ SHR(10, x))
-#define SHR(x,n)  (x >> n)
+#define SIG0(x)    (ROTR(7, x) ^ ROTR(18, x) ^ SHR(3, x))
+#define SIG1(x)    (ROTR(17, x) ^ ROTR(19, x) ^ SHR(10, x))
+#define SHR(x,n)   (x >> n)
+// see sections 4.1.2
+#define Ch(x,y,z)  ((x^y) 
+#define Maj(x,y,z) ((
+
 
 int main(int argc, char *argv[]) {
     
@@ -54,7 +58,46 @@ void sha256() {
     // from page 22, W[t] = ...
     for (t = 16; t < 64; t++){
         SIG1(W[t-2]) + W[t-7] + SIG0(W[t-15]) + W[t-16];
+        
     }// for
 
+    // initilize a...h as per step 2, page 22
+    a = H[0]; b = H[1]; c = H[2]; d = H[3];
+    e = H[4]; f = H[5]; g = H[6]; h = H[7];
+    
+    // see section 3.2 for definitions
+    for (t = 0; t < 64; t ++){
+        T1 = h + SIG1(e) + Ch(e, f, g) + K[t] + W[t];
+        T2 = SIG0(a) + Maj(a, b, c);
+        h = g;
+        g = f;
+        f = e;
+        e = d + T1;
+        d = c;
+        c = b;
+        b = a;
+        a = T1 + T2;
+    }// for
+    
+    // step 4
+    W[0] = a + H[0];
+    W[1] = b + H[1];
+    W[2] = c + H[2];
+    W[3] = d + H[3];
+    W[4] = e + H[4];
+    W[5] = f + H[5];
+    W[6] = g + H[6];
+    W[7] = h + H[7];
+
+
+
+
+
+
+
 }// sha25
+
+
+
+
 
