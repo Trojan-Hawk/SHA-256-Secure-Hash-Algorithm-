@@ -69,51 +69,50 @@ void sha256() {
     uint32_t M[16];
 
     // for looping
-    int t;
+    int i, t;
+
+    // loop through the message blocks
+    for(i = 0; i < 1; i++){
+
+        // from page 22, W[t] = M[t] for 0 <= t <= 15
+        for(t = 0; t < 16; t++){
+            W[t] = M[t];
+        }// for
+
+        // from page 22, W[t] = ...
+        for (t = 16; t < 64; t++){
+            W[t] = sig1(W[t-2]) + W[t-7] + sig0(W[t-15]) + W[t-16];
+        }// for
+
+        // initilize a...h as per step 2, page 22
+        a = H[0]; b = H[1]; c = H[2]; d = H[3];
+        e = H[4]; f = H[5]; g = H[6]; h = H[7];
     
-    // from page 22, W[t] = M[t] for 0 <= t <= 15
-    for(t = 0; t < 16; t++){
-        W[t] = M[t];
+        // see section 3.2 for definitions
+        for (t = 0; t < 64; t ++){
+            T1 = h + SIG1(e) + Ch(e, f, g) + K[t] + W[t];
+            T2 = SIG0(a) + Maj(a, b, c);
+            h = g;
+            g = f;
+            f = e;
+            e = d + T1;
+            d = c;
+            c = b;
+            b = a;
+            a = T1 + T2;
+        }// for
+    
+        // step 4
+        H[0] = a + H[0];
+        H[1] = b + H[1];
+        H[2] = c + H[2];
+        H[3] = d + H[3];
+        H[4] = e + H[4];
+        H[5] = f + H[5];
+        H[6] = g + H[6];
+        H[7] = h + H[7];
+
     }// for
-
-    // from page 22, W[t] = ...
-    for (t = 16; t < 64; t++){
-        W[t] = sig1(W[t-2]) + W[t-7] + sig0(W[t-15]) + W[t-16];
-    }// for
-
-    // initilize a...h as per step 2, page 22
-    a = H[0]; b = H[1]; c = H[2]; d = H[3];
-    e = H[4]; f = H[5]; g = H[6]; h = H[7];
-    
-    // see section 3.2 for definitions
-    for (t = 0; t < 64; t ++){
-        T1 = h + SIG1(e) + Ch(e, f, g) + K[t] + W[t];
-        T2 = SIG0(a) + Maj(a, b, c);
-        h = g;
-        g = f;
-        f = e;
-        e = d + T1;
-        d = c;
-        c = b;
-        b = a;
-        a = T1 + T2;
-    }// for
-    
-    // step 4
-    H[0] = a + H[0];
-    H[1] = b + H[1];
-    H[2] = c + H[2];
-    H[3] = d + H[3];
-    H[4] = e + H[4];
-    H[5] = f + H[5];
-    H[6] = g + H[6];
-    H[7] = h + H[7];
-
-    
-
-
-
-
 
 }// sha25
 
