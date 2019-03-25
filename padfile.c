@@ -8,43 +8,67 @@ union msgBlock {
     uint64_t s[8];
 };
 
+// enum status flag
+enum status (READ, PAD0, PAD1, FINISH);
+
+
 int main(int argc, char *argv[]) {
 
     union msgBlock M;
-
+    
     uint64_t nobits = 0;
-
+    // track the number of bytes being read in
     uint64_t nobytes;
+
+    // set the status flag to READ
+    enum status S = READ;
 
     FILE* file;
     file = fopen(argv[1], "r");
 
-    // need to preform some error chech on file opening
+    // need to preform some error check on file opening
     // f_error/f_err maybe
 
-    while(!feof(file)) {
+    while(S == READ) {
         nobytes = fread(M.e, 1, 64, file);
         // keep track of the number of bits
         nobits = nobits + (nobytes * 8);
+        // if less than 56 bytes are read, current message block can just be padded
         if(nobytes < 56) {
-            printf("I've found a block with less than 55 bytes!\n");
-            // add '00000001' to the message block
-            M.e[nobytes] = 0x01;
-            
+            printf("I've found a block with less than 55 bytes!\n");//DEBUG
+            // append '10000000' to the message block
+            M.e[nobytes] = 0x80;
+            // pad all the bits until 64 bits left
             while(nobytes < 56) {
                 nobytes = nobytes +1;
                 // append on all '0' bits
                 M.e[nobytes] = 0x00;
             }// while
-
-            M.s[7] = nobits;
+            // append the number of bytes in the file as a 64 bit int
+            M.s[7] = nobits;// IS THIS BIG ENDIAN???****************************************
+            // set the flag to FINISH
+            S = FINISH;
         }// if
-        printf("%llu\n", nobytes);
+        // if we have read more than 56 bytes but less than 64 bytes,
+        // there is not enough space to append 1 + 0* + 64bit total
+        // an extra message block of padding will be needed here
+        else if (nobytes < 64) {
+            // set the flag
+            S = PAD0;
+            // append the 1 to the message
+            M.e[nobytes] = 0x80;
+            // pad the rest of the message block with '0' bits
+            while(nobytes < 64) {
+                nobytes = nobytes +1;
+                M.e[nobytes] = 0x00;
+            }// while
+        }// else if
+        printf("%llu\n", nobytes);//DEBUG
     }// while
     
     fclose(file);
     
-    // print check
+    // print check DEBUG
     for(int i = 0; i < 64; i++){
         printf("%x ", M.e[i]);
     }// for
