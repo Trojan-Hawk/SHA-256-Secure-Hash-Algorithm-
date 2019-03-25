@@ -12,6 +12,8 @@ int main(int argc, char *argv[]) {
 
     union msgBlock M;
 
+    uint64_t nobits = 0;
+
     uint64_t nobytes;
 
     FILE* file;
@@ -20,12 +22,33 @@ int main(int argc, char *argv[]) {
     // need to preform some error chech on file opening
     // f_error/f_err maybe
 
-    while(!feof(f)) {
-        nobytes = fread(M.e, 1, 64, f);
+    while(!feof(file)) {
+        nobytes = fread(M.e, 1, 64, file);
+        // keep track of the number of bits
+        nobits = nobits + (nobytes * 8);
+        if(nobytes < 56) {
+            printf("I've found a block with less than 55 bytes!\n");
+            // add '00000001' to the message block
+            M.e[nobytes] = 0x01;
+            
+            while(nobytes < 56) {
+                nobytes = nobytes +1;
+                // append on all '0' bits
+                M.e[nobytes] = 0x00;
+            }// while
+
+            M.s[7] = nobits;
+        }// if
         printf("%llu\n", nobytes);
     }// while
-
-    fclose(f);
+    
+    fclose(file);
+    
+    // print check
+    for(int i = 0; i < 64; i++){
+        printf("%x ", M.e[i]);
+    }// for
+    printf("\n");
 
     return 0;
 }// main
