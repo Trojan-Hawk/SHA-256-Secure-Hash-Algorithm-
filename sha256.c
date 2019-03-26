@@ -35,14 +35,15 @@ union msgBlock {
 
 // struct to store program state
 struct buffer_state {
+    uint32_t M[16];
     uint64_t nobits;
     enum status S;
     FILE* file;
 };
 
 // function definitions
-void sha256(struct buffer_state*);
-//int nextMsgBlock(struct buffer_state*);
+void sha256(struct buffer_state *);
+int nextMsgBlock(struct buffer_state *);
 
 
 int main(int argc, char *argv[]) {
@@ -50,8 +51,18 @@ int main(int argc, char *argv[]) {
     struct buffer_state state;
     // set the number of bits read to 0
     state.nobits = 0;
-    // pass the pointer to the sha256 algorithm
-    sha256(&state);
+    // set the file
+    state.file = fopen(argv[1], "r");
+    
+    if (state.file == NULL) {
+        // print the error
+        perror(argv[1]);
+        // return -1 for failure
+        return(-1);
+    } else {
+        // pass the pointer to the sha256 algorithm
+        sha256(&state);
+    }// if/else
 
     return 0;
 }// main
@@ -93,17 +104,17 @@ void sha256(struct buffer_state* state) {
     };
 
     // the current message block
-    uint32_t M[16] = {0,0,0,0,0,0,0,0};
+    // uint32_t M[16];
 
     // for looping
     int i, t;
     
     // loop through the message blocks, see section 6.2.2 for definitions
-    for(i = 0; i < 1; i++){
+    while(nextMsgBlock(state)) {
         
         // from page 22, W[t] = M[t] for 0 <= t <= 15
         for(t = 0; t < 16; t++){
-            W[t] = M[t];
+            W[t] = state->M[t];
         }// for
 
         // from page 22, W[t] = ...
@@ -144,34 +155,99 @@ void sha256(struct buffer_state* state) {
 
 }// sha25
 
-/*
-uint32_t ROTR(uint32_t x, uint32_t n){
-    return ((x >> n) | (x << (32 - n))); 
-}     
-// #define ROTL(x,n)  (x << n) | (x >> (32 - n))
-// see section 4.1.2 for definitions
-uint32_t sig0(uint32_t x){
-    return (ROTR(7, x) ^ ROTR(18, x) ^ SHR(3, x));
-}
-uint32_t sig1(uint32_t x){
-    return (ROTR(17, x) ^ ROTR(19, x) ^ SHR(10, x));
-}
-uint32_t SHR(uint32_t x,uint32_t n){           
-    return (x >> n);
-}
-uint32_t Ch(uint32_t x,uint32_t y,uint32_t z){ 
-    return ((x & y) ^ ((!x) & z));
-} // choosing  
-uint32_t Maj(uint32_t x,uint32_t y,uint32_t z){ 
-    return ((x & y) ^ (x & z) ^ (y & z));
-} // majority vote
-uint32_t SIG0(uint32_t x){    
-    return (ROTR(2, x) ^ ROTR(13, x) ^ ROTR(22, x));
-}
-uint32_t SIG1(uint32_t x){  
-    return (ROTR(6, x) ^ ROTR(11, x) ^ ROTR(25, x));
-}
-*/
+int nextMsgBlock(struct buffer_state * state) {
+    union msgBlock M;
+    int i;
+    uint64_t nobits = 0;
+    // track the number of bytes being read in
+    uint64_t nobytes;
+
+    // set the status flag to READ
+    state->S = READ;
+      
+    nobytes = fread(M.e, 1, 64, state->file);
+    // keep track of the number of bits
+    nobits = nobits + (nobytes * 8);
+    // if less than 56 bytes are read, current message block can just be padded
+    if(nobytes < 56) {
+        printf("I've found a block with less than 55 bytes!\n");//DEBUG
+        // append '10000000' to the message block
+        M.e[nobytes] = 0x80;
+        // pad all the bits until 64 bits left
+        while(nobytes < 56) {
+            nobytes = nobytes +1;
+            // append on all '0' bits
+            M.e[nobytes] = 0x00;
+        }// while
+        // append the number of bytes in the file as a 64 bit int
+        // convert to Big Endian
+        M.s[7] = lilEndianToBig(nobits);
+        // set the flag to FINISH
+        state->S = FINISH;
+    }
+    // if we have read more than 56 bytes but less than 64 bytes,
+    // there is not enough space to append 1 + 0* + 64bit total
+    // an extra message block of padding will be needed here
+    else if (nobytes < 64) {
+        // set the flag
+        state->S = PAD0;
+        // append the 1 to the message
+        M.e[nobytes] = 0x80;
+        // pad the rest of the message block with '0' bits
+        while(nobytes < 64) {
+            nobytes = nobytes +1;
+            M.e[nobytes] = 0x00;
+        }// while
+    }
+    // if the file byte size is a multiple of 64(512bits)
+    // a '1' followed by 447 '0' bits followed by the 64bit total
+    // we need to create a new message block containing,
+    else if(feof(state->file)) {
+        // set the flag
+        state->S = PAD1;
+    }// else if
+
+    // if PAD0 or PAD1 flag is set, append '0' bits then 64 bit total
+    if(state->S == PAD0 || state->S == PAD1) {
+        for(i = 0; i < 56; i++)
+            M.e[i] = 0x00;
+        // convert to Big Endian
+        M.s[7] = lilEndianToBig(nobits);
+    }// if
+                                                        
+    // if the PAD1 flag is set, set the 0th bit to '1' 
+    if(state->S == PAD1)
+        M.e[0] = 0x80;
+
+    printf("%llu\n", nobytes);//DEBUG
+                                                                                
+    //printf("Little Endian: %x", M.s[7]);
+    //printf("Big Endian:_%x", lilEndianToBig(M.s[7]));
+    
+    // set the state message block
+    for(i = 0; i < 16; i++)
+        state->M[i] = M.t[i];     
+    
+    // if there is still data to read
+    if(state->S = READ)
+        return 1;
+    else
+        return 0;
+}// nextMsgBlock
+
+   
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
