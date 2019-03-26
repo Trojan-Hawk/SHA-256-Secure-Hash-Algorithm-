@@ -7,7 +7,8 @@
 // For using fixed bit length integers
 #include <stdint.h>
 
-void sha256();
+// enum status flag
+enum status {READ, PAD0, PAD1, FINISH};
 
 // macro functions
 // see section 3.2 for definitions
@@ -21,29 +22,42 @@ void sha256();
 #define Maj(x,y,z) ((x & y) ^ (x & z) ^ (y & z)) // majority vote
 #define SIG0(x)    (ROTR(2, x) ^ ROTR(13, x) ^ ROTR(22, x))
 #define SIG1(x)    (ROTR(6, x) ^ ROTR(11, x) ^ ROTR(25, x))
+// macro that converts from little endian to big endian
+// source: http://www.firmcodes.com/write-c-program-convert-little-endian-big-endian-integer/
+# define lilEndianToBig(x) (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000))
 
-//uint32_t ROTR(uint32_t x, uint32_t n);      
-// #define ROTL(x,n)  (x << n) | (x >> (32 - n))
-// see section 4.1.2 for definitions
-//uint32_t sig0(uint32_t x);    
-//uint32_t sig1(uint32_t x);    
-//uint32_t SHR(uint32_t x,uint32_t n);
-//uint32_t Ch(uint32_t x,uint32_t y,uint32_t z);    
-//uint32_t Maj(uint32_t x,uint32_t y,uint32_t z); 
-//uint32_t SIG0(uint32_t x);    
-//uint32_t SIG1(uint32_t x);    
+// union memory space message block
+union msgBlock {
+    uint8_t  e[64];
+    uint32_t t[16];
+    uint64_t s[8];
+};
 
+// struct to store program state
+struct buffer_state {
+    uint64_t nobits;
+    enum status S;
+    FILE* file;
+};
+
+// function definitions
+void sha256(struct buffer_state*);
+//int nextMsgBlock(struct buffer_state*);
 
 
 int main(int argc, char *argv[]) {
-    
-    sha256();
+    // declare the state struct
+    struct buffer_state state;
+    // set the number of bits read to 0
+    state.nobits = 0;
+    // pass the pointer to the sha256 algorithm
+    sha256(&state);
 
     return 0;
 }// main
 
 
-void sha256() {
+void sha256(struct buffer_state* state) {
     // message schedule (section 6.2)
     uint32_t W[64];
     // working variables (section 6.2))

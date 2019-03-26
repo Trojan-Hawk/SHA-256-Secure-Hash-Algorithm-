@@ -3,7 +3,7 @@
 
 // union of memory space
 union msgBlock {
-    uint8_t e[64];
+    uint8_t  e[64];
     uint32_t t[16];
     uint64_t s[8];
 };
