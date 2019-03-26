@@ -38,6 +38,7 @@ union msgBlock {
 // struct to store program state
 struct buffer_state {
     uint8_t verbose;
+    uint8_t endianness;
     uint32_t M[16];
     uint64_t nobits;
     enum status S;
@@ -48,37 +49,22 @@ struct buffer_state {
 // function definitions
 void sha256(struct buffer_state *);
 int nextMsgBlock(struct buffer_state *);
-
+int endianness();
+void initializeState(struct buffer_state *, int, char*[]);
 
 int main(int argc, char *argv[]) {
     // if no arguments passed, print help option
     if(argc <= 0){
-        printf("No file input given!");    
+        printf("Please input a valid file.");    
         return -1;
     }// if
-    
-    int i;
+        
     // declare the state struct
     struct buffer_state state;
     
-    state.verbose = 0;
-    // checking command line arguments
-    for(i = 0; i<argc; ++i) {
-        if (strcmp("-v", argv[i]) == 0) {
-            printf("Verbose option selected.");
-            state.verbose = 1;
-        }// if
-    }// for   
-    
-    // initialize the struct variables
-    for(i = 0; i < 16; i++){
-        state.M[i] = 0;
-    }// for
-    // set the number of bits read to 0
-    state.nobits = 0;
-    state.S = READ;
-    state.filePointer = 0;
-    
+    // initialize the state struct
+    initializeState(&state, argc, argv); 
+
     // if verbose option is given
     if(state.verbose)
         state.file = fopen(argv[2], "r");
@@ -189,6 +175,7 @@ void sha256(struct buffer_state* state) {
 
 }// sha25
 
+// function to retrieve the next message block
 int nextMsgBlock(struct buffer_state * state) {
     union msgBlock M;
     int i;
@@ -227,9 +214,12 @@ int nextMsgBlock(struct buffer_state * state) {
             // append on all '0' bits
             M.e[nobytes] = 0x00;
         }// while
-        // append the number of bytes in the file as a 64 bit int
-        // convert to Big Endian
-        M.s[7] = lilEndianToBig(state->nobits);
+        // append the number of bits in the file as a 64 bit int
+        // convert to Big Endian if Little Endian
+        if(state->endianness)
+            M.s[7] = lilEndianToBig(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the flag to FINISH
         state->S = FINISH;
     }
@@ -259,8 +249,12 @@ int nextMsgBlock(struct buffer_state * state) {
     if(state->S == PAD0 || state->S == PAD1) {
         for(i = 0; i < 56; i++)
             M.e[i] = 0x00;
-        // convert to Big Endian
-        M.s[7] = lilEndianToBig(state->nobits);
+        // append the number of bits in the file as a 64 bit int
+        // convert to Big Endian if Little Endian
+        if(state->endianness)
+            M.s[7] = lilEndianToBig(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the flag to FINISH
         state->S = FINISH;
     }// if
@@ -269,8 +263,12 @@ int nextMsgBlock(struct buffer_state * state) {
     if(state->S == PAD1) {
         for(i = 0; i < 56; i++)
             M.e[i] = 0x00;
-        // convert to Big Endian
-        M.s[7] = lilEndianToBig(state->nobits);
+        // append the number of bits in the file as a 64 bit int
+        // convert to Big Endian if Little Endian
+        if(state->endianness)
+            M.s[7] = lilEndianToBig(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the 0th bit of this message block to '1'
         M.e[0] = 0x80;
         // set the flag to FINISH
@@ -291,22 +289,42 @@ int nextMsgBlock(struct buffer_state * state) {
         return 1;
 }// nextMsgBlock
 
-   
+int endianness() {
+    uint8_t x = 1;
 
+    char *c = (char*)&x;
 
+    return((int)*c);
+}// endianness
 
+void initializeState(struct buffer_state * state, int argc, char*argv[]) {
+    int i;    
+    state->verbose = 0;
+    // checking command line arguments
+    for(i = 0; i<argc; ++i) {
+        if (strcmp("-v", argv[i]) == 0) {
+            // set the verbose option
+            state->verbose = 1;
+        }// if
+    }// for   
 
-
-
-
-
-
-
-
-
-
-
-
-
-
+    // initialize the struct variables
+    for(i = 0; i < 16; i++){
+        // set all to 0
+        state->M[i] = 0;
+    }// for
+    // calculate the system+compiler endianness
+    state->endianness = endianness();
+    // set the number of bits read to 0
+    state->nobits = 0;
+    // set the initial state flag
+    state->S = READ;
+    // set the file pointer to 0
+    state->filePointer = 0;
+    
+    if(state->verbose && state->endianness)
+        printf("Little Endian System+Compiler detected.\n\n");
+    else if(state->verbose && state->endianness)
+        printf("Big Endian System+Compiler detected.\n\n");
+}// initializeState
 
