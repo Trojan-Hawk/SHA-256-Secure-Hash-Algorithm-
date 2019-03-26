@@ -9,8 +9,11 @@ union msgBlock {
 };
 
 // enum status flag
-enum status (READ, PAD0, PAD1, FINISH);
+enum status {READ, PAD0, PAD1, FINISH};
 
+// macro that converts from little endian to big endian
+// source: http://www.firmcodes.com/write-c-program-convert-little-endian-big-endian-integer/
+# define lilEndianToBig(x) (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000))
 
 int main(int argc, char *argv[]) {
 
@@ -25,6 +28,8 @@ int main(int argc, char *argv[]) {
 
     FILE* file;
     file = fopen(argv[1], "r");
+
+    int i;
 
     // need to preform some error check on file opening
     // f_error/f_err maybe
@@ -45,7 +50,8 @@ int main(int argc, char *argv[]) {
                 M.e[nobytes] = 0x00;
             }// while
             // append the number of bytes in the file as a 64 bit int
-            M.s[7] = nobits;// IS THIS BIG ENDIAN???****************************************
+            // convert to Big Endian
+            M.s[7] = lilEndianToBig(nobits);
             // set the flag to FINISH
             S = FINISH;
         }// if
@@ -63,7 +69,33 @@ int main(int argc, char *argv[]) {
                 M.e[nobytes] = 0x00;
             }// while
         }// else if
+        // if the file byte size is a multiple of 64(512bits)
+        // we need to create a new message block containing,
+        // a '1' followed by 447 '0' bits followed by the 64bit total
+        else if(feof(file)) {
+            // set the flag
+            S = PAD1;
+        }// else if
+        
+        // if the PAD1 flag is set, append the '1' bit 
+
+        // if PAD0 or PAD1 flag is set, append '0' bits then 64 bit total
+        if(S == PAD0 || S == PAD1) {
+            for(i = 0; i < 56; i++)
+                M.e[i] = 0x00;
+            // convert to Big Endian
+            M.s[7] = lilEndianToBig(nobits);
+        }// if
+        
+        // if the PAD1 flag is set, set the 0th bit to '1' 
+        if(S == PAD1)
+            M.e[0] = 0x80;
+        
         printf("%llu\n", nobytes);//DEBUG
+        
+        //printf("Little Endian: %x", M.s[7]);
+        //printf("Big Endian:    %x", lilEndianToBig(M.s[7]));
+    
     }// while
     
     fclose(file);
