@@ -6,6 +6,8 @@
 #include <stdio.h>
 // For using fixed bit length integers
 #include <stdint.h>
+// string comparision
+#include <string.h>
 
 // enum status flag
 enum status {READ, PAD0, PAD1, FINISH};
@@ -35,6 +37,7 @@ union msgBlock {
 
 // struct to store program state
 struct buffer_state {
+    uint8_t verbose;
     uint32_t M[16];
     uint64_t nobits;
     enum status S;
@@ -48,31 +51,55 @@ int nextMsgBlock(struct buffer_state *);
 
 
 int main(int argc, char *argv[]) {
+    // if no arguments passed, print help option
+    if(argc <= 0){
+        printf("No file input given!");    
+        return -1;
+    }// if
+    
+    int i;
     // declare the state struct
     struct buffer_state state;
+    
+    state.verbose = 0;
+    // checking command line arguments
+    for(i = 0; i<argc; ++i) {
+        if (strcmp("-v", argv[i]) == 0) {
+            printf("Verbose option selected.");
+            state.verbose = 1;
+        }// if
+    }// for   
+    
     // initialize the struct variables
-    for(int i = 0; i < 16; i++){
+    for(i = 0; i < 16; i++){
         state.M[i] = 0;
-    }    
+    }// for
     // set the number of bits read to 0
     state.nobits = 0;
     state.S = READ;
     state.filePointer = 0;
-    state.file = fopen(argv[1], "r");
+    
+    // if verbose option is given
+    if(state.verbose)
+        state.file = fopen(argv[2], "r");
+    else
+        state.file = fopen(argv[1], "r");
 
     if (state.file == NULL) {
         // print the error
-        perror(argv[1]);
+        if(state.verbose)
+            perror(argv[2]);
+        else
+            perror(argv[1]);
         // return -1 for failure
         return(-1);
     } else {
-        // pass the pointer to the sha256 algorithm
+        // pass the struct pointer to the sha256 algorithm
         sha256(&state);
         return 0;
     }// if/else
 
 }// main
-
 
 void sha256(struct buffer_state* state) {
     // message schedule (section 6.2)
@@ -156,7 +183,8 @@ void sha256(struct buffer_state* state) {
         H[6] = g + H[6];
         H[7] = h + H[7];
         
-        printf("PASS %d: %x %x %x %x %x %x %x %x\n", i, H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7]);
+        if(state->verbose)
+            printf("PASS %d: %x %x %x %x %x %x %x %x\n", i, H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7]);
     }// for
 
 }// sha25
@@ -181,14 +209,16 @@ int nextMsgBlock(struct buffer_state * state) {
     // keep track of the number of bytes
     state->filePointer = state->filePointer + nobytes;
     
-    // DEBUGGING
-    printf("Bytes Read: %d\n", nobytes);//DEBUG
-    printf("Current file pointer:   %d", state->filePointer);
-    printf(" || Number of bits: %d\n", state->nobits);
+    if(state->verbose) {
+        printf("Bytes Read: \t\t\t\t%d\n", nobytes);//DEBUG
+        printf("Current file pointer:   \t\t%d\n", state->filePointer);
+        printf("Number of bits: \t\t\t%d\n", state->nobits);
+    }// if
 
     // if less than 56 bytes are read, current message block can just be padded
     if(nobytes < 56) {
-        printf("I've found a block with less than 55 bytes!\n");//DEBUG
+        if(state->verbose)   
+            printf("\nBlock with less than 55 bytes found.\n");//DEBUG
         // append '10000000' to the message block
         M.e[nobytes] = 0x80;
         // pad all the bits until 64 bits left
@@ -247,23 +277,18 @@ int nextMsgBlock(struct buffer_state * state) {
         state->S = FINISH;
     }// if
                                                                                     
-    //printf("Little Endian: %x", M.s[7]);
-    //printf("Big Endian:_%x", lilEndianToBig(M.s[7]));
-    
     // set the state message block
     for(i = 0; i < 16; i++)
         state->M[i] = M.t[i];     
     
-    printf("Current State: %d(0:READ 1:PAD0 2:PAD1 3:FINISH)", state->S);
+    if(state->verbose && state->S != 3)
+        printf("\nCurrent State: %d (0:READ 1:PAD0 2:PAD1 3:FINISH)\n", state->S);
 
     // if there is still data to read
-    if(state->S != FINISH){
-        printf("\nReturning 0\n");
+    if(state->S != FINISH)
         return 0;
-    } else {
-        printf("\nReturning 1\n");
+    else
         return 1;
-    }
 }// nextMsgBlock
 
    
