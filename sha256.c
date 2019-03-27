@@ -14,18 +14,17 @@ enum status {READ, PAD0, PAD1, FINISH};
 
 // macro functions
 // see section 3.2 for definitions
-#define ROTR(x,n)  ((x >> n) | (x << (32 - n)))      
-#define ROTL(x,n)  ((x << n) | (x >> (32 - n)))
+#define ROTR(n,x)  ((x >> n) | (x << (32 - n)))      
 // see section 4.1.2 for definitions
 #define sig0(x)    (ROTR(7, x) ^ ROTR(18, x) ^ SHR(3, x))
 #define sig1(x)    (ROTR(17, x) ^ ROTR(19, x) ^ SHR(10, x))
-#define SHR(x,n)   (x >> n)
+#define SHR(n,x)   (x >> n)
 #define Ch(x,y,z)  ((x & y) ^ ((!x) & z)) // choosing  
 #define Maj(x,y,z) ((x & y) ^ (x & z) ^ (y & z)) // majority vote
 #define SIG0(x)    (ROTR(2, x) ^ ROTR(13, x) ^ ROTR(22, x))
 #define SIG1(x)    (ROTR(6, x) ^ ROTR(11, x) ^ ROTR(25, x))
 // macro that converts from little endian to big endian
-// source: http://www.firmcodes.com/write-c-program-convert-little-endian-big-endian-integer/
+// adapted from: http://www.firmcodes.com/write-c-program-convert-little-endian-big-endian-integer/
 # define lilEndianToBig(x) (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000))
 
 // union memory space message block
@@ -82,11 +81,14 @@ int main(int argc, char *argv[]) {
     } else {
         // pass the struct pointer to the sha256 algorithm
         sha256(&state);
+        // close the file
+        fclose(state.file);
         return 0;
     }// if/else
 
 }// main
 
+// sha256 algorithm implementation
 void sha256(struct buffer_state* state) {
     // message schedule (section 6.2)
     uint32_t W[64];
@@ -104,6 +106,23 @@ void sha256(struct buffer_state* state) {
 
     // K constants, see section 4.2.2 for definitions
     uint32_t K[] = {
+        0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5,
+        0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5,
+        0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3,
+        0x72be5d74, 0x80deb1fe, 0x9bdc06a7, 0xc19bf174,
+        0xe49b69c1, 0xefbe4786, 0x0fc19dc6, 0x240ca1cc, 
+        0x2de92c6f, 0x4a7484aa, 0x5cb0a9dc, 0x76f988da,
+        0x983e5152, 0xa831c66d, 0xb00327c8, 0xbf597fc7,
+        0xc6e00bf3, 0xd5a79147, 0x06ca6351, 0x14292967,
+        0x27b70a85, 0x2e1b2138, 0x4d2c6dfc, 0x53380d13, 
+        0x650a7354, 0x766a0abb, 0x81c2c92e, 0x92722c85,
+        0xa2bfe8a1, 0xa81a664b, 0xc24b8b70, 0xc76c51a3, 
+        0xd192e819, 0xd6990624, 0xf40e3585, 0x106aa070,
+        0x19a4c116, 0x1e376c08, 0x2748774c, 0x34b0bcb5, 
+        0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3,
+        0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208, 
+        0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+        /*
           0x428a2f98, 0x71374491, 0xb5c0fbcf, 0xe9b5dba5
         , 0x3956c25b, 0x59f111f1, 0x923f82a4, 0xab1c5ed5
         , 0xd807aa98, 0x12835b01, 0x243185be, 0x550c7dc3
@@ -120,6 +139,7 @@ void sha256(struct buffer_state* state) {
         , 0x391c0cb3, 0x4ed8aa4a, 0x5b9cca4f, 0x682e6ff3
         , 0x748f82ee, 0x78a5636f, 0x84c87814, 0x8cc70208
         , 0x90befffa, 0xa4506ceb, 0xbef9a3f7, 0xc67178f2
+        */
     };
 
     // for looping
@@ -127,15 +147,21 @@ void sha256(struct buffer_state* state) {
     // counter
     int i = 0;
     
+    // get the first message block
+    nextMsgBlock(state);
+
     // loop through the message blocks, see section 6.2.2 for definitions
-    while(nextMsgBlock(state) == 0) {
+    do {
         // increment the counter
         i++;
         // from page 22, W[t] = M[t] for 0 <= t <= 15
-        for(t = 0; t < 16; t++){
+        for(t = 0; t < 16; t++){ 
             W[t] = state->M[t];
+            printf("\nMessage section %d Value: %16x", t, W[t]);//DEBUGGING***************************************************        
         }// for
 
+        printf("\n");//DEBUGGING***************************************************
+        
         // from page 22, W[t] = ...
         for (t = 16; t < 64; t++){
             W[t] = sig1(W[t-2]) + W[t-7] + sig0(W[t-15]) + W[t-16];
@@ -171,12 +197,16 @@ void sha256(struct buffer_state* state) {
         
         if(state->verbose)
             printf("PASS %d: %x %x %x %x %x %x %x %x\n", i, H[0], H[1], H[2], H[3], H[4], H[5], H[6], H[7]);
-    }// for
+    } while(nextMsgBlock(state) == 0);     
 
 }// sha25
 
 // function to retrieve the next message block
 int nextMsgBlock(struct buffer_state * state) {
+    // if there is no data to read
+    if(state->S == FINISH)
+        return 1;
+    
     union msgBlock M;
     int i;
     // track the number of bytes being read in
@@ -191,13 +221,32 @@ int nextMsgBlock(struct buffer_state * state) {
     fseek(file, state->filePointer, SEEK_SET);
     nobytes = fread(M.e, 1, 64, file);
     
+    // DEBUGGING
+    nobytes = 3;
+    M.e[0] = 0x61;
+    M.e[1] = 0x62;
+    M.e[2] = 0x63;
+    M.e[3] = 0x00;
+
+    for(i = 0; i < nobytes; i++) {
+        printf("\nHex Value %d: %x",i,M.e[i]);
+    }// for
+    /*
+    for(i = 0; i < 64; i++) {
+       // M.e[i] = lilEndianToBig(M.e[i]);
+    }
+    
+    for(i = 0; i < nobytes; i++) {
+        printf("\nHex Value %d: %x",i,M.e[i]);
+    }// for
+    */
     // keep track of the number of bits
     state->nobits = state->nobits + (nobytes * 8);
     // keep track of the number of bytes
     state->filePointer = state->filePointer + nobytes;
     
     if(state->verbose) {
-        printf("Bytes Read: \t\t\t\t%d\n", nobytes);//DEBUG
+        printf("\nBytes Read: \t\t\t\t%d\n", nobytes);//DEBUG
         printf("Current file pointer:   \t\t%d\n", state->filePointer);
         printf("Number of bits: \t\t\t%d\n", state->nobits);
     }// if
@@ -273,30 +322,30 @@ int nextMsgBlock(struct buffer_state * state) {
         M.e[0] = 0x80;
         // set the flag to FINISH
         state->S = FINISH;
-    }// if
-                                                                                    
+    }// if 
+    
     // set the state message block
     for(i = 0; i < 16; i++)
         state->M[i] = M.t[i];     
     
     if(state->verbose && state->S != 3)
         printf("\nCurrent State: %d (0:READ 1:PAD0 2:PAD1 3:FINISH)\n", state->S);
-
-    // if there is still data to read
-    if(state->S != FINISH)
-        return 0;
-    else
-        return 1;
+    
+    // return false(0) to continue processing
+    return 0;
 }// nextMsgBlock
 
+// function to determine the system+compiler endianness
+// adapted from: http://cs-fundamentals.com/tech-interview/c/c-program-to-check-little-and-big-endian-architecture.php
 int endianness() {
     uint8_t x = 1;
-
+    
     char *c = (char*)&x;
 
     return((int)*c);
 }// endianness
 
+// function to initialize the state struct
 void initializeState(struct buffer_state * state, int argc, char*argv[]) {
     int i;    
     state->verbose = 0;
