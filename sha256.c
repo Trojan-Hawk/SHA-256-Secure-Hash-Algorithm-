@@ -1,5 +1,5 @@
-// Timothy Cassidy
-// G00333333
+// Author:      Timothy Cassidy
+// Student ID:  G00333333
 // link to SHA standard: https://nvlpubs.nist.gov/nistpubs/FIPS/NIST.FIPS.180-4.pdf
 
 // The usual input/output header file
@@ -16,13 +16,15 @@
 #define sig0(x)    (ROTR(7, x) ^ ROTR(18, x) ^ SHR(3, x))
 #define sig1(x)    (ROTR(17, x) ^ ROTR(19, x) ^ SHR(10, x))
 #define SHR(n,x)   (x >> n)
-#define Ch(x,y,z)  ((x & y) ^ (!(x) & z)) // choosing  
+#define Ch(x,y,z)  ((x & y) ^ (~(x) & z)) // choosing  
 #define Maj(x,y,z) ((x & y) ^ (x & z) ^ (y & z)) // majority vote
 #define SIG0(x)    (ROTR(2, x) ^ ROTR(13, x) ^ ROTR(22, x))
 #define SIG1(x)    (ROTR(6, x) ^ ROTR(11, x) ^ ROTR(25, x))
 // macro that converts from little endian to big endian
 // adapted from: http://www.firmcodes.com/write-c-program-convert-little-endian-big-endian-integer/
-# define lilEndianToBig(x) (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000))
+# define lilEndianToBig32(x) (((x>>24) & 0x000000ff) | ((x>>8) & 0x0000ff00) | ((x<<8) & 0x00ff0000) | ((x<<24) & 0xff000000))
+// adapted from: http://www.mit.edu/afs.new/sipb/project/merakidev/include/bits/byteswap.h
+# define lilEndianToBig64(x)  (((x & 0x00000000000000ff) << 56) | ((x & 0x000000000000ff00) << 40) | ((x & 0x0000000000ff0000) << 24) | ((x & 0x00000000ff000000) <<  8) | ((x & 0x000000ff00000000) >>  8) | ((x & 0x0000ff0000000000) >> 24) | ((x & 0x00ff000000000000) >> 40) | ((x & 0xff00000000000000) >> 56))
 
 // enum status flag
 enum status {READ, PAD0, PAD1, FINISH};
@@ -144,7 +146,7 @@ void sha256(struct buffer_state* state) {
         for(t = 0; t < 16; t++){ 
             // if on a Little Endian system+compiler flip the bits
             if(state->endianness)
-                W[t] = lilEndianToBig(state->M[t]);
+                W[t] = lilEndianToBig32(state->M[t]);
             else
                 W[t] = state->M[t];
             // print the message blocks in 32-bit sections
@@ -208,8 +210,8 @@ int nextMsgBlock(struct buffer_state * state) {
     nobytes = fread(M.e, 1, 64, file); 
 
     //********TESTING****************************************************************************************
-    /*
-    nobytes = 3;// override of bytes for testing
+     
+    nobytes = 0;// override of bytes for testing
     M.e[0] = 0x61;// hex value for 'a'
     M.e[1] = 0x62;// hex value for 'b'
     M.e[2] = 0x63;// hex value for 'c'
@@ -217,7 +219,7 @@ int nextMsgBlock(struct buffer_state * state) {
     for(i = 0; i < nobytes; i++) {
         printf("\nHex Value %d: %x",i,M.e[i]);
     }// for
-    */
+    
     //********TESTING****************************************************************************************
 
     // keep track of the number of bits
@@ -245,7 +247,10 @@ int nextMsgBlock(struct buffer_state * state) {
             M.e[nobytes] = 0x00;
         }// while
         // append the 64 bit int
-        M.s[7] = state->nobits;
+        if(state->endianness)
+            M.s[7] = lilEndianToBig64(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the flag to FINISH
         state->S = FINISH;
     }
@@ -276,7 +281,10 @@ int nextMsgBlock(struct buffer_state * state) {
         for(i = 0; i < 56; i++)
             M.e[i] = 0x00;
         // append the 64 bit int
-        M.s[7] = state->nobits;
+        if(state->endianness)
+            M.s[7] = lilEndianToBig64(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the flag to FINISH
         state->S = FINISH;
     }// if
@@ -286,7 +294,10 @@ int nextMsgBlock(struct buffer_state * state) {
         for(i = 0; i < 56; i++)
             M.e[i] = 0x00;
         // append the 64 bit int
-        M.s[7] = state->nobits;
+        if(state->endianness)
+            M.s[7] = lilEndianToBig64(state->nobits);
+        else
+            M.s[7] = state->nobits;
         // set the 0th bit of this message block to '1'
         M.e[0] = 0x80;
         // set the flag to FINISH
