@@ -28,11 +28,6 @@ is that your programperforms the algorithm — you are free to decide what input
 the user to input some free textor a filename via the command line."
 
 ## Project Functions
-- List all the functions
-- Explain in detail what each does
-- Explain your reasoning for the non-obvious
-- List sources where code has been adapted from
-
 ## Macro Functions
 ### SHA Standard Supplied Functions
 The ROTR and SHR functions can be found on pages 5 - 6 of the SHA Standard.
@@ -43,7 +38,6 @@ This function has been adapted from: http://www.firmcodes.com/write-c-program-co
 
 The lilToBigEndian64 macro swaps the Endian ordering format of any 64bit integer passed to it.
 This function has been adapted from: http://www.mit.edu/afs.new/sipb/project/merakidev/include/bits/byteswap.h
-
 ## Functions
 ### main function
 The main function first checks to see if any command-line arguments have been passed in, if not an error is displayed to the user 
