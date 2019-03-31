@@ -71,14 +71,14 @@ has been adapted from: http://cs-fundamentals.com/tech-interview/c/c-program-to-
 ## How To Run 
 ### Compile
 In order to compile the C script you must use the following command on your terminal:
-*gcc -o (name_of_output_file) (C_file_name)*
+- *gcc -o (name_of_output_file) (C_file_name)*
 Example:
-*gcc -o sha256 sha256.c*
+- *gcc -o sha256 sha256.c*
 ### Execution
 In order to execute this script you must enter the following command on your terminal after the compile step:
-*./(name_of_output_file) (input_file)*
+- *./(name_of_output_file) (input_file)*
 Example:
-*./sha256 Test.txt*
+- *./sha256 Test.txt*
 ### Verbose option
 If the user requires detailed information at run-time the '-v' option can be passed as the *first* arg iat the execution step, then 
 followed by the file to be processed.
