@@ -78,13 +78,13 @@ In order to execute this script you must enter the following command on your ter
 - *./(name_of_output_file) (input_file)*
 - Example: *./sha256 Test.txt*
 ### Verbose option
-If the user requires detailed information at run-time the '-v' option can be passed as the *first* arg iat the execution step, then 
+If the user requires detailed information at run-time the '-v' option can be passed as the *first* arg at the execution step, then 
 followed by the file to be processed.
 - *./(name_of_output_file) -v (input_file)*
 - Example: *./sha256 -v Test.txt*
 
 ## Issues Encountered
-### Little endian machine effecting correct output
+### Little endian machine affecting correct output
 The SHA Standard assumes that all values are stored in Big-Endian, because we were using a system and compiler which stored data in 
 Little-Endian form conversion from Little to Big Endian needed to be preformed. Because of the secure nature of the SHA standard, any 
 small change in the processing resulted in a massive change to the output message digest. This made it difficult to test, due to not 
